@@ -30,7 +30,7 @@ kotlin {
             implementation(libs.activity.compose)
             implementation(libs.core.ktx)
         }
-        desktopMain.dependencies { implementation(compose.desktop.currentOs) }
+        getByName("desktopMain").dependencies { implementation(compose.desktop.currentOs) }
     }
 }
 android {
