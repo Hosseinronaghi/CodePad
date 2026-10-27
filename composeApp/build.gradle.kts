@@ -54,7 +54,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "CodePad"
-            packageVersion = "0.3.1"
+            packageVersion = "1.0.0"
             description = "Cross-platform text and code editor"
         }
     }
