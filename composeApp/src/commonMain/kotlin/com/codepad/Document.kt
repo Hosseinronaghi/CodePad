@@ -19,7 +19,7 @@ class EditorDocument(val id: Long, initialName: String, initialText: String = ""
         private set
     var canRedo by mutableStateOf(false)
         private set
-    val isDirty: Boolean get() = field.text != savedText
+    val isDirty: Boolean get() = this.field.text != savedText
     val extension: String get() = name.substringAfterLast('.', "").lowercase()
 
     fun edit(next: TextFieldValue) {
