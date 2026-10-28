@@ -7,13 +7,13 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 
 private val keywords = setOf(
-    "fun", "val", "var", "class", "object", "interface", "return", "if", "else", "when", "for", "while", "import", "package", "private", "public", "true", "false", "null",
+    "echo", "require", "include", "foreach", "extends", "implements", "public", "protected", "static", "final", "abstract", "function", "use", "trait", "fun", "val", "var", "class", "object", "interface", "return", "if", "else", "when", "for", "while", "import", "package", "private", "public", "true", "false", "null",
     "def", "print", "from", "as", "in", "not", "and", "or", "lambda", "self", "async", "await", "pass", "with", "try", "except",
     "const", "let", "function", "export", "default", "new", "this", "switch", "case", "break", "continue", "throw",
     "int", "float", "double", "string", "void", "bool", "static", "using", "namespace", "struct", "enum"
 )
 fun highlighted(text: String, extension: String): AnnotatedString {
-    if (extension !in setOf("kt", "kts", "py", "js", "ts", "java", "cs", "json", "html", "xml", "css", "md", "sh")) return AnnotatedString(text)
+    if (extension !in setOf("kt", "kts", "py", "js", "jsx", "ts", "tsx", "java", "php", "c", "cpp", "h", "hpp", "cs", "go", "rs", "rb", "swift", "dart", "sql", "json", "yaml", "yml", "toml", "html", "htm", "xml", "css", "scss", "md", "sh", "bash", "ps1", "bat", "gradle")) return AnnotatedString(text)
     val pattern = Regex("//[^\n]*|#[^\n]*|\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|\\b[A-Za-z_][A-Za-z_0-9]*\\b|\\b\\d+(?:\\.\\d+)?\\b")
     return buildAnnotatedString {
         var cursor = 0
