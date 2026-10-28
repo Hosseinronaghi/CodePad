@@ -19,9 +19,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-private val background = Color(0xFF121920)
-private val panel = Color(0xFF1B2630)
-private val accent = Color(0xFF75CEA2)
+private val background = Color(0xFF0D1117)
+private val panel = Color(0xFF161B22)
+private val accent = Color(0xFF58D6A2)
+private val foreground = Color(0xFFE6EDF3)
+private val muted = Color(0xFF92A1B2)
+private val stroke = Color(0xFF303A46)
 
 @Composable
 fun CodePadApp(gateway: FileGateway) {
@@ -67,26 +70,32 @@ fun CodePadApp(gateway: FileGateway) {
         }
     }
     val active = docs.firstOrNull { it.id == activeId } ?: docs.first()
-    val scheme = darkColorScheme(primary = accent, background = background, surface = panel)
+    val scheme = darkColorScheme(primary = accent, onPrimary = background, background = background, onBackground = foreground, surface = panel, onSurface = foreground, onSurfaceVariant = muted, outline = stroke)
     MaterialTheme(colorScheme = scheme) {
-        Column(Modifier.fillMaxSize().background(background)) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(panel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("CodePad", color = accent, style = MaterialTheme.typography.titleLarge)
+        Column(Modifier.fillMaxSize().background(background).statusBarsPadding().navigationBarsPadding()) {
+            // Compact app bar that stays below the Android system status bar.
+            Row(
+                Modifier.fillMaxWidth().height(58.dp).background(panel).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("CodePad", color = foreground, fontSize = 20.sp, style = MaterialTheme.typography.titleLarge)
+                    Text("CODE EDITOR", color = accent, fontSize = 9.sp, letterSpacing = 1.4.sp)
+                }
                 TextButton(onClick = {
                     val id = nextId++
                     docs.add(EditorDocument(id, "untitled.txt"))
                     activeId = id
-                }) { Text("New") }
+                }) { Text("+ New", color = accent) }
                 TextButton(onClick = {
                     gateway.open { file ->
                         if (file != null) {
                             val doc = EditorDocument(nextId++, file.name, file.text, file.token)
-                            docs.add(doc)
-                            activeId = doc.id
-                            status = "Opened"
+                            docs.add(doc); activeId = doc.id
+                            status = "Opened " + file.name
                         } else status = "Open cancelled or failed"
                     }
-                }, enabled = gateway.supportsOpen) { Text("Open") }
+                }, enabled = gateway.supportsOpen) { Text("Open", color = if (gateway.supportsOpen) foreground else muted) }
                 TextButton(onClick = {
                     val snapshot = active.field.text
                     gateway.save(active) { token ->
@@ -96,25 +105,45 @@ fun CodePadApp(gateway: FileGateway) {
                             status = "Saved"
                         } else status = "Save cancelled or failed"
                     }
-                }) { Text("Save") }
+                }) { Text("Save", color = accent) }
             }
-            LazyRow(Modifier.fillMaxWidth().background(panel)) {
+            HorizontalDivider(color = stroke, thickness = 1.dp)
+            LazyRow(
+                Modifier.fillMaxWidth().height(48.dp).background(panel),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
                 items(docs, key = { it.id }) { doc ->
-                    Row(Modifier.padding(4.dp).background(if (doc.id == activeId) background else panel, RoundedCornerShape(6.dp)).clickable { activeId = doc.id }.padding(8.dp)) {
-                        Text((if (doc.isDirty) "* " else "") + doc.name)
-                        Spacer(Modifier.width(10.dp))
-                        Text("×", Modifier.clickable { closeId = doc.id })
+                    val selected = doc.id == activeId
+                    Row(
+                        Modifier.padding(end = 6.dp)
+                            .background(if (selected) background else Color(0xFF222A34), RoundedCornerShape(8.dp))
+                            .clickable { activeId = doc.id }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("▣", color = accent, fontSize = 13.sp)
+                        Spacer(Modifier.width(7.dp))
+                        Text((if (doc.isDirty) "● " else "") + doc.name,
+                            color = if (selected) foreground else muted,
+                            maxLines = 1, fontSize = 12.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Text("×", Modifier.clickable { closeId = doc.id }, color = muted, fontSize = 18.sp)
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                TextButton(onClick = { active.undo() }, enabled = active.canUndo) { Text("Undo") }
-                TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("Redo") }
-                TextButton(onClick = { searchOpen = !searchOpen }) { Text("Find") }
-                TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace") }
-                TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f) }) { Text("A-") }
-                TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f) }) { Text("A+") }
+            Row(
+                Modifier.fillMaxWidth().height(48.dp).background(background)
+                    .horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { active.undo() }, enabled = active.canUndo) { Text("↶ Undo", fontSize = 12.sp) }
+                TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("↷ Redo", fontSize = 12.sp) }
+                TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
+                TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
+                TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f) }) { Text("A−", fontSize = 12.sp) }
+                TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f) }) { Text("A+", fontSize = 12.sp) }
             }
+            HorizontalDivider(color = stroke, thickness = 1.dp)
             if (searchOpen) {
                 Column(Modifier.padding(8.dp)) {
                     OutlinedTextField(query, { query = it }, label = { Text("Find") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -147,12 +176,15 @@ fun CodePadApp(gateway: FileGateway) {
             }
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 val scroll = rememberScrollState()
-                Column(Modifier.width(45.dp).fillMaxHeight().background(panel).verticalScroll(scroll, enabled = false).padding(top = 12.dp)) {
+                Column(Modifier.width(48.dp).fillMaxHeight().background(panel).verticalScroll(scroll, enabled = false).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
                     repeat((active.field.text.count { it == '\n' } + 1).coerceAtMost(10000)) {
-                        Text((it + 1).toString(), fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, color = accent)
+                        Text((it + 1).toString(), modifier = Modifier.padding(end = 10.dp), fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, color = muted, fontFamily = FontFamily.Monospace)
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).horizontalScroll(rememberScrollState()).padding(12.dp)) {
+                    if (active.field.text.isEmpty()) {
+                        Text("Start typing your notes or code…", color = muted.copy(alpha = 0.65f), fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
+                    }
                     BasicTextField(
                         value = active.field,
                         onValueChange = { active.edit(it) },
@@ -163,7 +195,10 @@ fun CodePadApp(gateway: FileGateway) {
                 }
             }
             val position = cursorLocation(active.field.text, active.field.selection.start)
-            Text("  " + status + "  |  Ln " + position.first + ", Col " + position.second + "  UTF-8", color = accent, fontSize = 12.sp)
+            Row(Modifier.fillMaxWidth().height(32.dp).background(panel).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(status, color = muted, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                Text("Ln " + position.first + " : " + position.second + "   ·   UTF-8", color = accent, fontSize = 11.sp)
+            }
         }
         val closing = docs.firstOrNull { it.id == closeId }
         if (closing != null) AlertDialog(
