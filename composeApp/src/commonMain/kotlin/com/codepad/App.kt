@@ -15,6 +15,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -190,7 +193,10 @@ fun CodePadApp(gateway: FileGateway) {
                         onValueChange = { active.edit(it) },
                         modifier = Modifier.fillMaxWidth().defaultMinSize(minWidth = 280.dp),
                         textStyle = TextStyle(color = Color.White, fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, fontFamily = FontFamily.Monospace),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(accent)
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(accent),
+                        visualTransformation = VisualTransformation { value ->
+                            TransformedText(highlighted(value.text, active.extension), OffsetMapping.Identity)
+                        }
                     )
                 }
             }
