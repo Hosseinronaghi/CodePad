@@ -12,7 +12,7 @@ struct iOSApp: App {
 
 struct ComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainKt.MainViewController()
+        IosMainKt.MainViewController()
     }
     func updateUIViewController(_ controller: UIViewController, context: Context) {}
 }
