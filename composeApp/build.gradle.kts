@@ -14,9 +14,12 @@ kotlin {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
     jvm("desktop")
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
     sourceSets {
         commonMain.dependencies {
             implementation(compose.runtime)
