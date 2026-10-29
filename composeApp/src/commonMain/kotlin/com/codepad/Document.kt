@@ -60,6 +60,8 @@ interface FileGateway {
     fun chooseFolder(onResult: (String?) -> Unit) = onResult(null)
     fun listFolder(path: String): List<FolderEntry> = emptyList()
     fun readEntry(path: String): OpenedFile? = null
+    val supportsExecution: Boolean get() = false
+    fun execute(document: EditorDocument, onResult: (String) -> Unit) { onResult("Code execution is not available on this platform.") }
     fun createFolder(path: String, name: String): Boolean = false
     fun deleteEntry(path: String): Boolean = false
     fun getPreference(key: String, defaultValue: String): String = defaultValue
