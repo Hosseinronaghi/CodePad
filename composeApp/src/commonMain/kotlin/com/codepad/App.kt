@@ -42,8 +42,17 @@ fun CodePadApp(gateway: FileGateway) {
     var replaceOpen by remember { mutableStateOf(false) }
     var closeId by remember { mutableStateOf<Long?>(null) }
     var status by remember { mutableStateOf("Ready") }
-    var fontSize by remember { mutableFloatStateOf(14f) }
+    var fontSize by remember { mutableFloatStateOf(gateway.getPreference("font_size", "14").toFloatOrNull()?.coerceIn(10f, 28f) ?: 14f) }
     var restored by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    var themeMode by remember { mutableStateOf(gateway.getPreference("theme", "system")) }
+    val darkMode = when(themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
+    val bg = if(darkMode) background else Color(0xFFF7F9FC)
+    val bar = if(darkMode) panel else Color.White
+    val ink = if(darkMode) foreground else Color(0xFF17212E)
+    val secondary = if(darkMode) muted else Color(0xFF64748B)
+    val primaryAccent = if(darkMode) accent else Color(0xFF008967)
+    val border = if(darkMode) stroke else Color(0xFFE0E6EF)
 
     LaunchedEffect(gateway) {
         if (!restored) {
@@ -73,23 +82,23 @@ fun CodePadApp(gateway: FileGateway) {
         }
     }
     val active = docs.firstOrNull { it.id == activeId } ?: docs.first()
-    val scheme = darkColorScheme(primary = accent, onPrimary = background, background = background, onBackground = foreground, surface = panel, onSurface = foreground, onSurfaceVariant = muted, outline = stroke)
+    val scheme = if (darkMode) darkColorScheme(primary = primaryAccent, onPrimary = bg, background = bg, onBackground = ink, surface = bar, onSurface = ink) else lightColorScheme(primary = primaryAccent, onPrimary = Color.White, background = bg, onBackground = ink, surface = bar, onSurface = ink)
     MaterialTheme(colorScheme = scheme) {
-        Column(Modifier.fillMaxSize().background(background).statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().background(bg).statusBarsPadding().navigationBarsPadding()) {
             // Compact app bar that stays below the Android system status bar.
             Row(
-                Modifier.fillMaxWidth().height(58.dp).background(panel).padding(horizontal = 14.dp),
+                Modifier.fillMaxWidth().height(58.dp).background(bar).padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("CodePad", color = foreground, fontSize = 20.sp, style = MaterialTheme.typography.titleLarge)
-                    Text("CODE EDITOR", color = accent, fontSize = 9.sp, letterSpacing = 1.4.sp)
+                    Text("CodePad", color = ink, fontSize = 20.sp, style = MaterialTheme.typography.titleLarge)
+                    Text("CODE EDITOR", color = primaryAccent, fontSize = 9.sp, letterSpacing = 1.4.sp)
                 }
                 TextButton(onClick = {
                     val id = nextId++
                     docs.add(EditorDocument(id, "untitled.txt"))
                     activeId = id
-                }) { Text("+ New", color = accent) }
+                }) { Text("+ New", color = primaryAccent) }
                 TextButton(onClick = {
                     gateway.open { file ->
                         if (file != null) {
@@ -108,34 +117,34 @@ fun CodePadApp(gateway: FileGateway) {
                             status = "Saved"
                         } else status = "Save cancelled or failed"
                     }
-                }) { Text("Save", color = accent) }
+                }) { Text("Save", color = primaryAccent) }
             }
-            HorizontalDivider(color = stroke, thickness = 1.dp)
+            HorizontalDivider(color = border, thickness = 1.dp)
             LazyRow(
-                Modifier.fillMaxWidth().height(48.dp).background(panel),
+                Modifier.fillMaxWidth().height(48.dp).background(bar),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 items(docs, key = { it.id }) { doc ->
                     val selected = doc.id == activeId
                     Row(
                         Modifier.padding(end = 6.dp)
-                            .background(if (selected) background else Color(0xFF222A34), RoundedCornerShape(8.dp))
+                            .background(if (selected) bg else if (darkMode) Color(0xFF222A34) else Color(0xFFECF2F7), RoundedCornerShape(8.dp))
                             .clickable { activeId = doc.id }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("▣", color = accent, fontSize = 13.sp)
+                        Text("▣", color = primaryAccent, fontSize = 13.sp)
                         Spacer(Modifier.width(7.dp))
                         Text((if (doc.isDirty) "● " else "") + doc.name,
                             color = if (selected) foreground else muted,
                             maxLines = 1, fontSize = 12.sp)
                         Spacer(Modifier.width(12.dp))
-                        Text("×", Modifier.clickable { closeId = doc.id }, color = muted, fontSize = 18.sp)
+                        Text("×", Modifier.clickable { closeId = doc.id }, color = secondary, fontSize = 18.sp)
                     }
                 }
             }
             Row(
-                Modifier.fillMaxWidth().height(48.dp).background(background)
+                Modifier.fillMaxWidth().height(48.dp).background(bg)
                     .horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -143,10 +152,11 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("↷ Redo", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
-                TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f) }) { Text("A−", fontSize = 12.sp) }
-                TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f) }) { Text("A+", fontSize = 12.sp) }
+                TextButton(onClick = { settingsOpen = true }) { Text("Settings", fontSize = 12.sp) }
+                TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A−", fontSize = 12.sp) }
+                TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A+", fontSize = 12.sp) }
             }
-            HorizontalDivider(color = stroke, thickness = 1.dp)
+            HorizontalDivider(color = border, thickness = 1.dp)
             if (searchOpen) {
                 Column(Modifier.padding(8.dp)) {
                     OutlinedTextField(query, { query = it }, label = { Text("Find") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
@@ -179,21 +189,21 @@ fun CodePadApp(gateway: FileGateway) {
             }
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 val scroll = rememberScrollState()
-                Column(Modifier.width(48.dp).fillMaxHeight().background(panel).verticalScroll(scroll, enabled = false).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
+                Column(Modifier.width(48.dp).fillMaxHeight().background(bar).verticalScroll(scroll, enabled = false).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
                     repeat((active.field.text.count { it == '\n' } + 1).coerceAtMost(10000)) {
-                        Text((it + 1).toString(), modifier = Modifier.padding(end = 10.dp), fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, color = muted, fontFamily = FontFamily.Monospace)
+                        Text((it + 1).toString(), modifier = Modifier.padding(end = 10.dp), fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, color = secondary, fontFamily = FontFamily.Monospace)
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).horizontalScroll(rememberScrollState()).padding(12.dp)) {
                     if (active.field.text.isEmpty()) {
-                        Text("Start typing your notes or code…", color = muted.copy(alpha = 0.65f), fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
+                        Text("Start typing your notes or code…", color = secondary.copy(alpha = 0.65f), fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
                     }
                     BasicTextField(
                         value = active.field,
                         onValueChange = { active.edit(it) },
                         modifier = Modifier.fillMaxWidth().defaultMinSize(minWidth = 280.dp),
-                        textStyle = TextStyle(color = Color.White, fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, fontFamily = FontFamily.Monospace),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(accent),
+                        textStyle = TextStyle(color = ink, fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, fontFamily = FontFamily.Monospace),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(primaryAccent),
                         visualTransformation = VisualTransformation { value ->
                             TransformedText(highlighted(value.text, active.extension), OffsetMapping.Identity)
                         }
@@ -201,11 +211,35 @@ fun CodePadApp(gateway: FileGateway) {
                 }
             }
             val position = cursorLocation(active.field.text, active.field.selection.start)
-            Row(Modifier.fillMaxWidth().height(32.dp).background(panel).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(status, color = muted, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                Text("Ln " + position.first + " : " + position.second + "   ·   UTF-8", color = accent, fontSize = 11.sp)
+            Row(Modifier.fillMaxWidth().height(32.dp).background(bar).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(status, color = secondary, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                Text("Ln " + position.first + " : " + position.second + "   ·   UTF-8", color = primaryAccent, fontSize = 11.sp)
             }
         }
+        if (settingsOpen) AlertDialog(
+            onDismissRequest = { settingsOpen = false },
+            title = { Text("Editor settings") },
+            text = {
+                Column {
+                    Text("Appearance")
+                    listOf("system" to "Follow system", "light" to "Light", "dark" to "Dark").forEach { (value, label) ->
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            RadioButton(selected = themeMode == value, onClick = {
+                                themeMode = value
+                                gateway.setPreference("theme", value)
+                            })
+                            Text(label)
+                        }
+                    }
+                    Text("Font size: " + fontSize.toInt())
+                    Slider(value = fontSize, onValueChange = {
+                        fontSize = it
+                        gateway.setPreference("font_size", it.toInt().toString())
+                    }, valueRange = 10f..28f, steps = 17)
+                }
+            },
+            confirmButton = { TextButton(onClick = { settingsOpen = false }) { Text("Done") } }
+        )
         val closing = docs.firstOrNull { it.id == closeId }
         if (closing != null) AlertDialog(
             onDismissRequest = { closeId = null },
