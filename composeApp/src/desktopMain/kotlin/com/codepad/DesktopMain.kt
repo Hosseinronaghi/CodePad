@@ -55,6 +55,43 @@ private class DesktopGateway : FileGateway {
         val file = File(path)
         file.isFile && file.delete()
     }.getOrDefault(false)
+    override val supportsExecution = true
+    override fun execute(document: EditorDocument, onResult: (String) -> Unit) {
+        // Executes user-authored code only after the Run button is pressed.
+        // This is NOT a security sandbox; use only trusted source files.
+        Thread {
+            val extension = document.extension
+            val directory = Files.createTempDirectory("codepad-execute-").toFile()
+            try {
+                val output = when (extension) {
+                    "php" -> {
+                        val source = File(directory, "snippet.php")
+                        source.writeText(document.field.text, Charsets.UTF_8)
+                        runProgram(listOf("php", source.absolutePath), directory)
+                    }
+                    "java" -> {
+                        val className = Regex("\\bpublic\\s+class\\s+(\\w+)").find(document.field.text)?.groupValues?.get(1)
+                            ?: Regex("\\bclass\\s+(\\w+)").find(document.field.text)?.groupValues?.get(1)
+                            ?: "Main"
+                        if (!className.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) "Invalid Java class name"
+                        else {
+                            val source = File(directory, className + ".java")
+                            source.writeText(document.field.text, Charsets.UTF_8)
+                            val compile = runProgram(listOf("javac", source.absolutePath), directory)
+                            if (compile.first != 0) compile.second
+                            else runProgram(listOf("java", "-cp", directory.absolutePath, className), directory).second
+                        }
+                    }
+                    else -> "Choose a .php or .java file to run."
+                }
+                onResult(if (output is Pair<*, *>) output.second.toString() else output.toString())
+            } catch (e: Exception) {
+                onResult(e.message ?: "Unable to execute code; check installed PHP/JDK runtime.")
+            } finally {
+                directory.deleteRecursively()
+            }
+        }.start()
+    }
     override val supportsOpen = true
     override fun open(onResult: (OpenedFile?) -> Unit) {
         val chooser = JFileChooser()
@@ -99,6 +136,30 @@ private fun atomicWriteBytes(file: File, bytes: ByteArray) {
         catch (_: java.nio.file.AtomicMoveNotSupportedException) { Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING) }
     } finally { temp.delete() }
 }
+
+private fun runProgram(command: List<String>, folder: File): Pair<Int, String> {
+    val process = ProcessBuilder(command).directory(folder).redirectErrorStream(true).start()
+    val output = StringBuilder()
+    val reader = Thread {
+        process.inputStream.bufferedReader().use { stream ->
+            while (true) {
+                val line = stream.readLine() ?: break
+                if (output.length < 100_000) output.appendLine(line)
+            }
+        }
+    }
+    reader.isDaemon = true
+    reader.start()
+    val done = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+    if (!done) {
+        process.destroyForcibly()
+        reader.join(1000)
+        return -1 to "Execution timed out after 10 seconds."
+    }
+    reader.join(1000)
+    return process.exitValue() to output.toString()
+}
+
 fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "CodePad") {
         CodePadApp(remember { DesktopGateway() })
