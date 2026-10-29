@@ -5,7 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.TextFieldValue
 
-class EditorDocument(val id: Long, initialName: String, initialText: String = "", initialToken: String? = null) {
+class EditorDocument(val id: Long, initialName: String, initialText: String = "", initialToken: String? = null, initialEncoding: String = "UTF-8") {
+    var encoding by mutableStateOf(initialEncoding)
     var name by mutableStateOf(initialName)
     var field by mutableStateOf(TextFieldValue(initialText))
         private set
@@ -64,5 +65,5 @@ interface FileGateway {
     fun open(onResult: (OpenedFile?) -> Unit)
     fun save(document: EditorDocument, onResult: (String?) -> Unit)
 }
-data class OpenedFile(val name: String, val text: String, val token: String?)
+data class OpenedFile(val name: String, val text: String, val token: String?, val encoding: String = "UTF-8")
 fun isSupportedText(text: String): Boolean = '\u0000' !in text
