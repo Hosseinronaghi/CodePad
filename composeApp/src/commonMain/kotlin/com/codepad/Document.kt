@@ -54,7 +54,7 @@ class EditorDocument(val id: Long, initialName: String, initialText: String = ""
         canRedo = redoStack.isNotEmpty()
     }
 }
-data class DraftSnapshot(val id: Long, val name: String, val text: String, val token: String?)
+data class DraftSnapshot(val id: Long, val name: String, val text: String, val token: String?, val encoding: String = "UTF-8")
 interface FileGateway {
     fun getPreference(key: String, defaultValue: String): String = defaultValue
     fun setPreference(key: String, value: String) {}
