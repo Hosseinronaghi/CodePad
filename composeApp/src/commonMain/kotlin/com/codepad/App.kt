@@ -62,7 +62,7 @@ fun CodePadApp(gateway: FileGateway) {
             if (recovered.isNotEmpty()) {
                 docs.clear()
                 recovered.forEach {
-                    val doc = EditorDocument(it.id, it.name, "", it.token)
+                    val doc = EditorDocument(it.id, it.name, "", it.token, it.encoding)
                     doc.edit(TextFieldValue(it.text))
                     docs.add(doc)
                 }
@@ -78,7 +78,7 @@ fun CodePadApp(gateway: FileGateway) {
         val dirty = doc.isDirty
         LaunchedEffect(doc.id, text, name, token, dirty) {
             delay(850)
-            if (dirty) gateway.writeDraft(doc.id, DraftSnapshot(doc.id, name, text, token))
+            if (dirty) gateway.writeDraft(doc.id, DraftSnapshot(doc.id, name, text, token, doc.encoding))
             else gateway.deleteDraft(doc.id)
         }
     }
