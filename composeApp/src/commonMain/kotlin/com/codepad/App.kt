@@ -39,6 +39,9 @@ fun CodePadApp(gateway: FileGateway) {
     var regex by remember { mutableStateOf(false) }
     var ignoreCase by remember { mutableStateOf(false) }
     var searchOpen by remember { mutableStateOf(false) }
+    var folderPath by remember { mutableStateOf<String?>(null) }
+    var folderRefresh by remember { mutableIntStateOf(0) }
+    var folderOpen by remember { mutableStateOf(false) }
     var replaceOpen by remember { mutableStateOf(false) }
     var closeId by remember { mutableStateOf<Long?>(null) }
     var status by remember { mutableStateOf("Ready") }
@@ -169,11 +172,37 @@ fun CodePadApp(gateway: FileGateway) {
                         } else status = "Save As cancelled or failed"
                     }
                 }) { Text("Save As", fontSize = 12.sp) }
+                TextButton(onClick = { gateway.chooseFolder { path -> if (path != null) { folderPath = path; folderOpen = true; folderRefresh++ } } }) { Text("Folder", fontSize = 12.sp) }
                 TextButton(onClick = { settingsOpen = true }) { Text("Settings", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A−", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A+", fontSize = 12.sp) }
             }
             HorizontalDivider(color = border, thickness = 1.dp)
+            if (folderOpen && folderPath != null) {
+                val path = folderPath!!
+                val entries = remember(path, folderRefresh) { gateway.listFolder(path) }
+                Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState()).background(bar).padding(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Folder: " + path.substringAfterLast('/').substringAfterLast('\\'), color = ink, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                        TextButton(onClick = { folderRefresh++ }) { Text("Refresh") }
+                        TextButton(onClick = { folderOpen = false }) { Text("Close") }
+                    }
+                    entries.forEach { entry ->
+                        TextButton(onClick = {
+                            if (entry.directory) { folderPath = entry.path; folderRefresh++ }
+                            else {
+                                val file = gateway.readEntry(entry.path)
+                                if (file != null) {
+                                    val doc = EditorDocument(nextId++, file.name, file.text, file.token, file.encoding)
+                                    docs.add(doc); activeId = doc.id
+                                } else status = "Unable to open file"
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text((if (entry.directory) "📁 " else "▣ ") + entry.name, modifier = Modifier.fillMaxWidth(), fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
             if (searchOpen) {
                 Column(Modifier.padding(8.dp)) {
                     OutlinedTextField(query, { query = it }, label = { Text("Find") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
