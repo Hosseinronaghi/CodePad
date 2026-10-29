@@ -43,6 +43,8 @@ fun CodePadApp(gateway: FileGateway) {
     var folderRefresh by remember { mutableIntStateOf(0) }
     var folderOpen by remember { mutableStateOf(false) }
     var foldedView by remember { mutableStateOf(false) }
+    var runConfirm by remember { mutableStateOf(false) }
+    var runOutput by remember { mutableStateOf<String?>(null) }
     var replaceOpen by remember { mutableStateOf(false) }
     var closeId by remember { mutableStateOf<Long?>(null) }
     var status by remember { mutableStateOf("Ready") }
@@ -162,6 +164,7 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("↷ Redo", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
+                TextButton(onClick = { runConfirm = true }, enabled = gateway.supportsExecution) { Text("▶ Run", fontSize = 12.sp) }
                 TextButton(onClick = { foldedView = !foldedView }) { Text(if (foldedView) "Edit" else "Fold", fontSize = 12.sp) }
                 TextButton(onClick = { goToOpen = true }) { Text("Go to", fontSize = 12.sp) }
                 TextButton(onClick = {
@@ -276,6 +279,22 @@ fun CodePadApp(gateway: FileGateway) {
                 Text("Ln " + position.first + " : " + position.second + "   ·   " + active.encoding, color = primaryAccent, fontSize = 11.sp)
             }
         }
+        if (runConfirm) AlertDialog(
+            onDismissRequest = { runConfirm = false },
+            title = { Text("Run PHP / Java") },
+            text = { Text("Only execute code you trust. This runs locally with your user permissions and is NOT sandboxed. Requires installed PHP or Java JDK.") },
+            confirmButton = { TextButton(onClick = {
+                runConfirm = false
+                gateway.execute(active) { output -> runOutput = output }
+            }) { Text("Execute") } },
+            dismissButton = { TextButton(onClick = { runConfirm = false }) { Text("Cancel") } }
+        )
+        if (runOutput != null) AlertDialog(
+            onDismissRequest = { runOutput = null },
+            title = { Text("Program output") },
+            text = { Text(runOutput ?: "", fontFamily = FontFamily.Monospace) },
+            confirmButton = { TextButton(onClick = { runOutput = null }) { Text("Close") } }
+        )
         if (goToOpen) AlertDialog(
             onDismissRequest = { goToOpen = false },
             title = { Text("Go to line") },
