@@ -27,7 +27,7 @@ jobs:
         with:
           gradle-version: '8.13'
       - name: Build debug APK
-        run: gradle --no-daemon --stacktrace :composeApp:assembleDebug
+        run: gradle --no-daemon --stacktrace :composeApp:assembleDebug :composeApp:testDebugUnitTest
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
