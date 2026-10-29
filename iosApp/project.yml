@@ -1,0 +1,30 @@
+name: CodePad
+options:
+  bundleIdPrefix: com.codepad
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+    SWIFT_VERSION: '5.0'
+targets:
+  CodePad:
+    type: application
+    platform: iOS
+    deploymentTarget: '15.0'
+    sources:
+      - path: iosApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.codepad.editor
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: YES
+        FRAMEWORK_SEARCH_PATHS: '$(inherited) $(SRCROOT)/../composeApp/build/bin/iosSimulatorArm64/debugFramework'
+        OTHER_LDFLAGS: '$(inherited) -framework ComposeApp'
+        CODE_SIGNING_ALLOWED: NO
+    dependencies:
+      - framework: ../composeApp/build/bin/iosSimulatorArm64/debugFramework/ComposeApp.framework
+        embed: false
+schemes:
+  CodePad:
+    build:
+      targets:
+        CodePad: all
