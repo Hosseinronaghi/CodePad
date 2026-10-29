@@ -9,6 +9,9 @@ import java.nio.file.StandardCopyOption
 import javax.swing.JFileChooser
 
 private class DesktopGateway : FileGateway {
+    private val prefs = java.util.prefs.Preferences.userNodeForPackage(DesktopGateway::class.java)
+    override fun getPreference(key: String, defaultValue: String): String = prefs.get(key, defaultValue)
+    override fun setPreference(key: String, value: String) { prefs.put(key, value) }
     private val draftsDir = File(System.getProperty("user.home"), ".codepad/recovery")
     override fun readDrafts(): List<DraftSnapshot> = draftsDir.listFiles()?.mapNotNull { file ->
         runCatching {
