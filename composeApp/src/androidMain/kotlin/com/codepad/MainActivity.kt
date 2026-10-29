@@ -56,8 +56,15 @@ fun rememberAndroidFileGateway(): FileGateway {
             private val draftsDir = java.io.File(context.filesDir, "recovery")
             override fun readDrafts(): List<DraftSnapshot> = draftsDir.listFiles()?.mapNotNull { file ->
                 runCatching {
-                    val lines = file.readText(Charsets.UTF_8).split("\n", limit = 3)
-                    if (lines.size != 3) null else DraftSnapshot(file.nameWithoutExtension.toLong(), lines[0], lines[2], lines[1].ifEmpty { null })
+                    val contents = file.readText(Charsets.UTF_8)
+                    val lines = contents.split("\n", limit = 4)
+                    val knownEncodings = setOf("UTF-8", "UTF-8-BOM", "UTF-16LE", "UTF-16LE-BOM", "UTF-16BE", "UTF-16BE-BOM", "Windows-1252", "ISO-8859-1")
+                    if (lines.size >= 4 && lines[2] in knownEncodings)
+                        DraftSnapshot(file.nameWithoutExtension.toLong(), lines[0], lines[3], lines[1].ifEmpty { null }, lines[2])
+                    else {
+                        val old = contents.split("\n", limit = 3)
+                        if (old.size != 3) null else DraftSnapshot(file.nameWithoutExtension.toLong(), old[0], old[2], old[1].ifEmpty { null })
+                    }
                 }.getOrNull()
             } ?: emptyList()
             override fun writeDraft(id: Long, snapshot: DraftSnapshot) {
@@ -65,8 +72,20 @@ fun rememberAndroidFileGateway(): FileGateway {
                     draftsDir.mkdirs()
                     val target = java.io.File(draftsDir, "$id.draft")
                     val temp = java.io.File(draftsDir, "$id.tmp")
-                    temp.writeText(snapshot.name.replace("\n", " ") + "\n" + (snapshot.token ?: "") + "\n" + snapshot.text)
-                    if (!temp.renameTo(target)) { target.delete(); temp.renameTo(target) }
+                    val payload = snapshot.name.replace("\n", " ") + "\n" +
+                        (snapshot.token ?: "") + "\n" + snapshot.encoding + "\n" + snapshot.text
+                    java.io.FileOutputStream(temp).use { output ->
+                        output.write(payload.toByteArray(Charsets.UTF_8))
+                        output.fd.sync()
+                    }
+                    try {
+                        java.nio.file.Files.move(temp.toPath(), target.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+                    } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
+                        java.nio.file.Files.move(temp.toPath(), target.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                    }
                 }
             }
             override fun deleteDraft(id: Long) { java.io.File(draftsDir, "$id.draft").delete() }
