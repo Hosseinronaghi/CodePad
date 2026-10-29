@@ -20,16 +20,20 @@ fun rememberAndroidFileGateway(): FileGateway {
     var openCallback by remember { mutableStateOf<((OpenedFile?) -> Unit)?>(null) }
     var saveCallback by remember { mutableStateOf<((String?) -> Unit)?>(null) }
     var pendingContent by remember { mutableStateOf("") }
+    var pendingEncoding by remember { mutableStateOf("UTF-8") }
     val opener = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         val result = uri?.let {
             runCatching {
-                val text = context.contentResolver.openInputStream(it)!!.bufferedReader(Charsets.UTF_8).use { reader -> reader.readText() }
+                val fileBytes = context.contentResolver.openInputStream(it)!!.use { stream -> stream.readBytes() }
+                val selectedEncoding = context.getSharedPreferences("codepad_settings", android.content.Context.MODE_PRIVATE).getString("default_encoding", "UTF-8") ?: "UTF-8"
+                val decoded = decodeText(fileBytes, selectedEncoding)
+                val text = decoded.text
                 val name = context.contentResolver.query(it, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) cursor.getString(0) else null
                 } ?: "document.txt"
                 if (!isSupportedText(text)) error("Binary file")
                 runCatching { context.contentResolver.takePersistableUriPermission(it, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
-                OpenedFile(name, text, it.toString())
+                OpenedFile(name, text, it.toString(), decoded.encoding)
             }.getOrNull()
         }
         openCallback?.invoke(result); openCallback = null
@@ -37,7 +41,8 @@ fun rememberAndroidFileGateway(): FileGateway {
     val creator = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
         val saved = uri?.let {
             runCatching {
-                context.contentResolver.openOutputStream(it, "wt")!!.bufferedWriter(Charsets.UTF_8).use { writer -> writer.write(pendingContent) }
+                val encoded = encodeText(pendingContent, pendingEncoding)
+                context.contentResolver.openOutputStream(it, "wt")!!.use { stream -> stream.write(encoded) }
                 it.toString()
             }.getOrNull()
         }
@@ -74,12 +79,14 @@ fun rememberAndroidFileGateway(): FileGateway {
                 val token = document.fileToken
                 if (token != null) {
                     val result = runCatching {
-                        context.contentResolver.openOutputStream(Uri.parse(token), "wt")!!.bufferedWriter(Charsets.UTF_8).use { it.write(document.field.text) }
+                        val encoded = encodeText(document.field.text, document.encoding)
+                        context.contentResolver.openOutputStream(Uri.parse(token), "wt")!!.use { it.write(encoded) }
                         token
                     }.getOrNull()
                     onResult(result)
                 } else {
                     pendingContent = document.field.text
+                    pendingEncoding = document.encoding
                     saveCallback = onResult
                     creator.launch(document.name)
                 }
