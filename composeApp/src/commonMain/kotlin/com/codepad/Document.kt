@@ -64,6 +64,7 @@ interface FileGateway {
     val supportsOpen: Boolean
     fun open(onResult: (OpenedFile?) -> Unit)
     fun save(document: EditorDocument, onResult: (String?) -> Unit)
+    fun saveAs(document: EditorDocument, onResult: (String?) -> Unit) = save(document, onResult)
 }
 data class OpenedFile(val name: String, val text: String, val token: String?, val encoding: String = "UTF-8")
 fun isSupportedText(text: String): Boolean = '\u0000' !in text
