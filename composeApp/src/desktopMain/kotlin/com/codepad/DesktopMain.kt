@@ -33,6 +33,28 @@ private class DesktopGateway : FileGateway {
         }
     }
     override fun deleteDraft(id: Long) { File(draftsDir, "$id.draft").delete() }
+    override fun chooseFolder(onResult: (String?) -> Unit) {
+        val chooser = JFileChooser().apply { fileSelectionMode = JFileChooser.DIRECTORIES_ONLY }
+        onResult(if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile.canonicalPath else null)
+    }
+    override fun listFolder(path: String): List<FolderEntry> = runCatching {
+        File(path).listFiles()?.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            ?.map { FolderEntry(it.name, it.canonicalPath, it.isDirectory) } ?: emptyList()
+    }.getOrDefault(emptyList())
+    override fun readEntry(path: String): OpenedFile? = runCatching {
+        val file = File(path)
+        require(file.isFile)
+        val result = decodeText(file.readBytes(), getPreference("default_encoding", "UTF-8"))
+        OpenedFile(file.name, result.text, file.canonicalPath, result.encoding)
+    }.getOrNull()
+    override fun createFolder(path: String, name: String): Boolean {
+        if (name.isBlank() || name == "." || name == ".." || name.any { it == '/' || it == '\\' }) return false
+        return runCatching { File(path, name).mkdir() }.getOrDefault(false)
+    }
+    override fun deleteEntry(path: String): Boolean = runCatching {
+        val file = File(path)
+        file.isFile && file.delete()
+    }.getOrDefault(false)
     override val supportsOpen = true
     override fun open(onResult: (OpenedFile?) -> Unit) {
         val chooser = JFileChooser()
