@@ -42,6 +42,9 @@ fun CodePadApp(gateway: FileGateway) {
     var folderPath by remember { mutableStateOf<String?>(null) }
     var folderRefresh by remember { mutableIntStateOf(0) }
     var folderOpen by remember { mutableStateOf(false) }
+    var newFolderOpen by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<FolderEntry?>(null) }
     var foldedView by remember { mutableStateOf(false) }
     var runConfirm by remember { mutableStateOf(false) }
     var runOutput by remember { mutableStateOf<String?>(null) }
@@ -189,10 +192,12 @@ fun CodePadApp(gateway: FileGateway) {
                 Column(Modifier.fillMaxWidth().heightIn(max = 180.dp).verticalScroll(rememberScrollState()).background(bar).padding(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Folder: " + path.substringAfterLast('/').substringAfterLast('\\'), color = ink, modifier = Modifier.weight(1f), fontSize = 12.sp)
+                        TextButton(onClick = { newFolderOpen = true }) { Text("+ Folder") }
                         TextButton(onClick = { folderRefresh++ }) { Text("Refresh") }
                         TextButton(onClick = { folderOpen = false }) { Text("Close") }
                     }
                     entries.forEach { entry ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = {
                             if (entry.directory) { folderPath = entry.path; folderRefresh++ }
                             else {
@@ -202,8 +207,10 @@ fun CodePadApp(gateway: FileGateway) {
                                     docs.add(doc); activeId = doc.id
                                 } else status = "Unable to open file"
                             }
-                        }, modifier = Modifier.fillMaxWidth()) {
+                        }, modifier = Modifier.weight(1f)) {
                             Text((if (entry.directory) "📁 " else "▣ ") + entry.name, modifier = Modifier.fillMaxWidth(), fontSize = 12.sp)
+                        }
+                        if (!entry.directory) TextButton(onClick = { pendingDelete = entry }) { Text("Delete", fontSize = 11.sp) }
                         }
                     }
                 }
@@ -279,6 +286,33 @@ fun CodePadApp(gateway: FileGateway) {
                 Text("Ln " + position.first + " : " + position.second + "   ·   " + active.encoding, color = primaryAccent, fontSize = 11.sp)
             }
         }
+        if (newFolderOpen) AlertDialog(
+            onDismissRequest = { newFolderOpen = false },
+            title = { Text("Create folder") },
+            text = { OutlinedTextField(newFolderName, { newFolderName = it }, label = { Text("Folder name") }) },
+            confirmButton = { TextButton(onClick = {
+                val path = folderPath
+                if (path != null && gateway.createFolder(path, newFolderName)) {
+                    folderRefresh++
+                    status = "Folder created"
+                } else status = "Unable to create folder"
+                newFolderName = ""
+                newFolderOpen = false
+            }) { Text("Create") } },
+            dismissButton = { TextButton(onClick = { newFolderOpen = false }) { Text("Cancel") } }
+        )
+        val deleting = pendingDelete
+        if (deleting != null) AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete file?") },
+            text = { Text("Delete " + deleting.name + "? This cannot be undone.") },
+            confirmButton = { TextButton(onClick = {
+                status = if (gateway.deleteEntry(deleting.path)) "File deleted" else "Delete failed"
+                folderRefresh++
+                pendingDelete = null
+            }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } }
+        )
         if (runConfirm) AlertDialog(
             onDismissRequest = { runConfirm = false },
             title = { Text("Run PHP / Java") },
