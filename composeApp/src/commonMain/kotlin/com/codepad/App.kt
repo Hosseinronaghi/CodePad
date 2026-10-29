@@ -45,6 +45,11 @@ fun CodePadApp(gateway: FileGateway) {
     var fontSize by remember { mutableFloatStateOf(gateway.getPreference("font_size", "14").toFloatOrNull()?.coerceIn(10f, 28f) ?: 14f) }
     var restored by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var wordWrap by remember { mutableStateOf(gateway.getPreference("word_wrap", "true") == "true") }
+    var showNumbers by remember { mutableStateOf(gateway.getPreference("line_numbers", "true") == "true") }
+    var autoBrackets by remember { mutableStateOf(gateway.getPreference("auto_brackets", "true") == "true") }
+    var goToOpen by remember { mutableStateOf(false) }
+    var goToValue by remember { mutableStateOf("") }
     var defaultEncoding by remember { mutableStateOf(gateway.getPreference("default_encoding", "UTF-8")) }
     var themeMode by remember { mutableStateOf(gateway.getPreference("theme", "system")) }
     val darkMode = when(themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
@@ -153,6 +158,7 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("↷ Redo", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
+                TextButton(onClick = { goToOpen = true }) { Text("Go to", fontSize = 12.sp) }
                 TextButton(onClick = { settingsOpen = true }) { Text("Settings", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A−", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A+", fontSize = 12.sp) }
@@ -190,19 +196,19 @@ fun CodePadApp(gateway: FileGateway) {
             }
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 val scroll = rememberScrollState()
-                Column(Modifier.width(48.dp).fillMaxHeight().background(bar).verticalScroll(scroll, enabled = false).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
+                if (showNumbers) Column(Modifier.width(48.dp).fillMaxHeight().background(bar).verticalScroll(scroll, enabled = false).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
                     repeat((active.field.text.count { it == '\n' } + 1).coerceAtMost(10000)) {
                         Text((it + 1).toString(), modifier = Modifier.padding(end = 10.dp), fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, color = secondary, fontFamily = FontFamily.Monospace)
                     }
                 }
-                Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).horizontalScroll(rememberScrollState()).padding(12.dp)) {
+                Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(scroll).then(if (wordWrap) Modifier else Modifier.horizontalScroll(rememberScrollState())).padding(12.dp)) {
                     if (active.field.text.isEmpty()) {
                         Text("Start typing your notes or code…", color = secondary.copy(alpha = 0.65f), fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
                     }
                     BasicTextField(
                         value = active.field,
-                        onValueChange = { active.edit(it) },
-                        modifier = Modifier.fillMaxWidth().defaultMinSize(minWidth = 280.dp),
+                        onValueChange = { active.edit(completeBracket(active.field, it, autoBrackets)) },
+                        modifier = if (wordWrap) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().defaultMinSize(minWidth = 280.dp),
                         textStyle = TextStyle(color = ink, fontSize = fontSize.sp, lineHeight = (fontSize + 6).sp, fontFamily = FontFamily.Monospace),
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(primaryAccent),
                         visualTransformation = VisualTransformation { value ->
@@ -217,6 +223,27 @@ fun CodePadApp(gateway: FileGateway) {
                 Text("Ln " + position.first + " : " + position.second + "   ·   " + active.encoding, color = primaryAccent, fontSize = 11.sp)
             }
         }
+        if (goToOpen) AlertDialog(
+            onDismissRequest = { goToOpen = false },
+            title = { Text("Go to line") },
+            text = { OutlinedTextField(value = goToValue, onValueChange = { goToValue = it.filter(Char::isDigit) },
+                label = { Text("Line number") }, singleLine = true) },
+            confirmButton = { TextButton(onClick = {
+                val number = goToValue.toIntOrNull()
+                if (number != null && number > 0) {
+                    val text = active.field.text
+                    var offset = 0
+                    repeat((number - 1).coerceAtMost(text.count { it == '\n' })) {
+                        val next = text.indexOf('\n', offset)
+                        if (next >= 0) offset = next + 1
+                    }
+                    active.edit(active.field.copy(selection = TextRange(offset)))
+                    status = "Line " + number
+                }
+                goToOpen = false
+            }) { Text("Go") } },
+            dismissButton = { TextButton(onClick = { goToOpen = false }) { Text("Cancel") } }
+        )
         if (settingsOpen) AlertDialog(
             onDismissRequest = { settingsOpen = false },
             title = { Text("Editor settings") },
@@ -241,6 +268,27 @@ fun CodePadApp(gateway: FileGateway) {
                             })
                             Text(choice)
                         }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = wordWrap, onCheckedChange = {
+                            wordWrap = it; gateway.setPreference("word_wrap", it.toString())
+                        })
+                        Spacer(Modifier.width(8.dp))
+                        Text("Word wrap")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = showNumbers, onCheckedChange = {
+                            showNumbers = it; gateway.setPreference("line_numbers", it.toString())
+                        })
+                        Spacer(Modifier.width(8.dp))
+                        Text("Line numbers")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Switch(checked = autoBrackets, onCheckedChange = {
+                            autoBrackets = it; gateway.setPreference("auto_brackets", it.toString())
+                        })
+                        Spacer(Modifier.width(8.dp))
+                        Text("Auto-close brackets")
                     }
                     Text("Font size: " + fontSize.toInt())
                     Slider(value = fontSize, onValueChange = {
