@@ -55,6 +55,8 @@ class EditorDocument(val id: Long, initialName: String, initialText: String = ""
 }
 data class DraftSnapshot(val id: Long, val name: String, val text: String, val token: String?)
 interface FileGateway {
+    fun getPreference(key: String, defaultValue: String): String = defaultValue
+    fun setPreference(key: String, value: String) {}
     fun readDrafts(): List<DraftSnapshot> = emptyList()
     fun writeDraft(id: Long, snapshot: DraftSnapshot) {}
     fun deleteDraft(id: Long) {}
