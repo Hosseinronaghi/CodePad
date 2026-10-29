@@ -44,6 +44,18 @@ private class DesktopGateway : FileGateway {
             }.getOrNull())
         } else onResult(null)
     }
+    override fun saveAs(document: EditorDocument, onResult: (String?) -> Unit) {
+        val chooser = JFileChooser().apply { selectedFile = File(document.name) }
+        if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) {
+            onResult(null)
+            return
+        }
+        val file = chooser.selectedFile
+        onResult(runCatching {
+            atomicWriteBytes(file, encodeText(document.field.text, document.encoding))
+            file.absolutePath
+        }.getOrNull())
+    }
     override fun save(document: EditorDocument, onResult: (String?) -> Unit) {
         val file = if (document.fileToken != null) File(document.fileToken) else {
             val chooser = JFileChooser().apply { selectedFile = File(document.name) }
