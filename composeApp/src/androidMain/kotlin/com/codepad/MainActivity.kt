@@ -45,6 +45,9 @@ fun rememberAndroidFileGateway(): FileGateway {
     }
     return remember(opener, creator) {
         object : FileGateway {
+            private val prefs = context.getSharedPreferences("codepad_settings", android.content.Context.MODE_PRIVATE)
+            override fun getPreference(key: String, defaultValue: String): String = prefs.getString(key, defaultValue) ?: defaultValue
+            override fun setPreference(key: String, value: String) { prefs.edit().putString(key, value).apply() }
             private val draftsDir = java.io.File(context.filesDir, "recovery")
             override fun readDrafts(): List<DraftSnapshot> = draftsDir.listFiles()?.mapNotNull { file ->
                 runCatching {
