@@ -159,6 +159,16 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
                 TextButton(onClick = { goToOpen = true }) { Text("Go to", fontSize = 12.sp) }
+                TextButton(onClick = {
+                    val snapshot = active.field.text
+                    gateway.saveAs(active) { token ->
+                        if (token != null) {
+                            active.markSaved(token, snapshot)
+                            if (!active.isDirty) gateway.deleteDraft(active.id)
+                            status = "Saved as new file"
+                        } else status = "Save As cancelled or failed"
+                    }
+                }) { Text("Save As", fontSize = 12.sp) }
                 TextButton(onClick = { settingsOpen = true }) { Text("Settings", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize - 1).coerceAtLeast(10f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A−", fontSize = 12.sp) }
                 TextButton(onClick = { fontSize = (fontSize + 1).coerceAtMost(28f); gateway.setPreference("font_size", fontSize.toInt().toString()) }) { Text("A+", fontSize = 12.sp) }
