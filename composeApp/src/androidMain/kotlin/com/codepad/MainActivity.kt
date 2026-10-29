@@ -105,7 +105,9 @@ fun rememberAndroidFileGateway(): FileGateway {
             }
             override fun listFolder(path: String): List<FolderEntry> = runCatching {
                 val treeUri = Uri.parse(path)
-                val documentId = android.provider.DocumentsContract.getTreeDocumentId(treeUri)
+                val documentId = if (android.provider.DocumentsContract.isDocumentUri(context, treeUri))
+                    android.provider.DocumentsContract.getDocumentId(treeUri)
+                else android.provider.DocumentsContract.getTreeDocumentId(treeUri)
                 val childUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
                 val columns = arrayOf(
                     android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
