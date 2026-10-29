@@ -94,6 +94,12 @@ fun rememberAndroidFileGateway(): FileGateway {
                 openCallback = onResult
                 opener.launch(arrayOf("*/*"))
             }
+            override fun saveAs(document: EditorDocument, onResult: (String?) -> Unit) {
+                pendingContent = document.field.text
+                pendingEncoding = document.encoding
+                saveCallback = onResult
+                creator.launch(document.name)
+            }
             override fun save(document: EditorDocument, onResult: (String?) -> Unit) {
                 val token = document.fileToken
                 if (token != null) {
