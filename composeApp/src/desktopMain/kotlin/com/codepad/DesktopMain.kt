@@ -15,14 +15,21 @@ private class DesktopGateway : FileGateway {
     private val draftsDir = File(System.getProperty("user.home"), ".codepad/recovery")
     override fun readDrafts(): List<DraftSnapshot> = draftsDir.listFiles()?.mapNotNull { file ->
         runCatching {
-            val lines = file.readText(Charsets.UTF_8).split("\n", limit = 3)
-            if (lines.size != 3) null else DraftSnapshot(file.nameWithoutExtension.toLong(), lines[0], lines[2], lines[1].ifEmpty { null })
+            val contents = file.readText(Charsets.UTF_8)
+            val lines = contents.split("\n", limit = 4)
+            val encodings = setOf("UTF-8", "UTF-8-BOM", "UTF-16LE", "UTF-16LE-BOM", "UTF-16BE", "UTF-16BE-BOM", "Windows-1252", "ISO-8859-1")
+            if (lines.size >= 4 && lines[2] in encodings)
+                DraftSnapshot(file.nameWithoutExtension.toLong(), lines[0], lines[3], lines[1].ifEmpty { null }, lines[2])
+            else {
+                val old = contents.split("\n", limit = 3)
+                if (old.size != 3) null else DraftSnapshot(file.nameWithoutExtension.toLong(), old[0], old[2], old[1].ifEmpty { null })
+            }
         }.getOrNull()
     } ?: emptyList()
     override fun writeDraft(id: Long, snapshot: DraftSnapshot) {
         runCatching {
             draftsDir.mkdirs()
-            atomicWrite(File(draftsDir, "$id.draft"), snapshot.name.replace("\n", " ") + "\n" + (snapshot.token ?: "") + "\n" + snapshot.text)
+            atomicWrite(File(draftsDir, "$id.draft"), snapshot.name.replace("\n", " ") + "\n" + (snapshot.token ?: "") + "\n" + snapshot.encoding + "\n" + snapshot.text)
         }
     }
     override fun deleteDraft(id: Long) { File(draftsDir, "$id.draft").delete() }
