@@ -31,7 +31,10 @@ private class DesktopGateway : FileGateway {
         val chooser = JFileChooser()
         if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
             val file = chooser.selectedFile
-            onResult(runCatching { OpenedFile(file.name, file.readText(Charsets.UTF_8), file.absolutePath) }.getOrNull())
+            onResult(runCatching {
+                val decoded = decodeText(file.readBytes(), getPreference("default_encoding", "UTF-8"))
+                OpenedFile(file.name, decoded.text, file.absolutePath, decoded.encoding)
+            }.getOrNull())
         } else onResult(null)
     }
     override fun save(document: EditorDocument, onResult: (String?) -> Unit) {
@@ -40,15 +43,17 @@ private class DesktopGateway : FileGateway {
             if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) { onResult(null); return }
             chooser.selectedFile
         }
-        onResult(runCatching { atomicWrite(file, document.field.text); file.absolutePath }.getOrNull())
+        onResult(runCatching { atomicWriteBytes(file, encodeText(document.field.text, document.encoding)); file.absolutePath }.getOrNull())
     }
 }
-private fun atomicWrite(file: File, content: String) {
+private fun atomicWrite(file: File, content: String) = atomicWriteBytes(file, content.toByteArray(Charsets.UTF_8))
+
+private fun atomicWriteBytes(file: File, bytes: ByteArray) {
     val parent = file.absoluteFile.parentFile
     parent.mkdirs()
     val temp = File.createTempFile(".codepad-", ".tmp", parent)
     try {
-        temp.writeText(content, Charsets.UTF_8)
+        temp.writeBytes(bytes)
         try { Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE) }
         catch (_: java.nio.file.AtomicMoveNotSupportedException) { Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING) }
     } finally { temp.delete() }
