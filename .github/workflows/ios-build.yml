@@ -28,5 +28,18 @@ jobs:
           gradle-version: '8.13'
       - name: Check Xcode
         run: xcodebuild -version
-      - name: Compile iOS simulator Kotlin source
-        run: gradle --no-daemon --stacktrace :composeApp:compileKotlinIosSimulatorArm64
+      - name: Link iOS simulator Kotlin framework
+        run: gradle --no-daemon --stacktrace :composeApp:linkDebugFrameworkIosSimulatorArm64
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: cd iosApp && xcodegen generate
+      - name: Compile simulator iOS app
+        run: xcodebuild -project iosApp/CodePad.xcodeproj -scheme CodePad -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Upload simulator build
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodePad-iOS-simulator-app
+          path: ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/CodePad.app/**
+          if-no-files-found: warn
