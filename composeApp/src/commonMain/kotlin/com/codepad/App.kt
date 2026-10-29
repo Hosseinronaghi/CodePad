@@ -45,6 +45,7 @@ fun CodePadApp(gateway: FileGateway) {
     var fontSize by remember { mutableFloatStateOf(gateway.getPreference("font_size", "14").toFloatOrNull()?.coerceIn(10f, 28f) ?: 14f) }
     var restored by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var defaultEncoding by remember { mutableStateOf(gateway.getPreference("default_encoding", "UTF-8")) }
     var themeMode by remember { mutableStateOf(gateway.getPreference("theme", "system")) }
     val darkMode = when(themeMode) { "light" -> false; "dark" -> true; else -> isSystemInDarkTheme() }
     val bg = if(darkMode) background else Color(0xFFF7F9FC)
@@ -96,13 +97,13 @@ fun CodePadApp(gateway: FileGateway) {
                 }
                 TextButton(onClick = {
                     val id = nextId++
-                    docs.add(EditorDocument(id, "untitled.txt"))
+                    docs.add(EditorDocument(id, "untitled.txt", initialEncoding = defaultEncoding))
                     activeId = id
                 }) { Text("+ New", color = primaryAccent) }
                 TextButton(onClick = {
                     gateway.open { file ->
                         if (file != null) {
-                            val doc = EditorDocument(nextId++, file.name, file.text, file.token)
+                            val doc = EditorDocument(nextId++, file.name, file.text, file.token, file.encoding)
                             docs.add(doc); activeId = doc.id
                             status = "Opened " + file.name
                         } else status = "Open cancelled or failed"
@@ -213,7 +214,7 @@ fun CodePadApp(gateway: FileGateway) {
             val position = cursorLocation(active.field.text, active.field.selection.start)
             Row(Modifier.fillMaxWidth().height(32.dp).background(bar).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(status, color = secondary, fontSize = 11.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                Text("Ln " + position.first + " : " + position.second + "   ·   UTF-8", color = primaryAccent, fontSize = 11.sp)
+                Text("Ln " + position.first + " : " + position.second + "   ·   " + active.encoding, color = primaryAccent, fontSize = 11.sp)
             }
         }
         if (settingsOpen) AlertDialog(
@@ -229,6 +230,16 @@ fun CodePadApp(gateway: FileGateway) {
                                 gateway.setPreference("theme", value)
                             })
                             Text(label)
+                        }
+                    }
+                    Text("Default file encoding")
+                    listOf("UTF-8", "Windows-1252", "ISO-8859-1", "UTF-16LE", "UTF-16BE").forEach { choice ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = defaultEncoding == choice, onClick = {
+                                defaultEncoding = choice
+                                gateway.setPreference("default_encoding", choice)
+                            })
+                            Text(choice)
                         }
                     }
                     Text("Font size: " + fontSize.toInt())
@@ -249,7 +260,7 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = {
                     gateway.deleteDraft(closing.id)
                     docs.remove(closing)
-                    if (docs.isEmpty()) docs.add(EditorDocument(nextId++, "untitled.txt"))
+                    if (docs.isEmpty()) docs.add(EditorDocument(nextId++, "untitled.txt", initialEncoding = defaultEncoding))
                     activeId = docs.first().id
                     closeId = null
                 }) { Text("Close") }
