@@ -55,7 +55,13 @@ class EditorDocument(val id: Long, initialName: String, initialText: String = ""
     }
 }
 data class DraftSnapshot(val id: Long, val name: String, val text: String, val token: String?, val encoding: String = "UTF-8")
+data class FolderEntry(val name: String, val path: String, val directory: Boolean)
 interface FileGateway {
+    fun chooseFolder(onResult: (String?) -> Unit) = onResult(null)
+    fun listFolder(path: String): List<FolderEntry> = emptyList()
+    fun readEntry(path: String): OpenedFile? = null
+    fun createFolder(path: String, name: String): Boolean = false
+    fun deleteEntry(path: String): Boolean = false
     fun getPreference(key: String, defaultValue: String): String = defaultValue
     fun setPreference(key: String, value: String) {}
     fun readDrafts(): List<DraftSnapshot> = emptyList()
