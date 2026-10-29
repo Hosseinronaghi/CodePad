@@ -5,6 +5,8 @@ import androidx.compose.ui.window.ComposeUIViewController
 import platform.Foundation.NSUserDefaults
 
 private class IosDraftGateway : FileGateway {
+    override fun getPreference(key: String, defaultValue: String): String = NSUserDefaults.standardUserDefaults.stringForKey(key) ?: defaultValue
+    override fun setPreference(key: String, value: String) { NSUserDefaults.standardUserDefaults.setObject(value, forKey = key) }
     override fun readDrafts(): List<DraftSnapshot> = emptyList()
     override fun writeDraft(id: Long, snapshot: DraftSnapshot) {
         NSUserDefaults.standardUserDefaults.setObject(snapshot.text, forKey = "recovery_$id")
