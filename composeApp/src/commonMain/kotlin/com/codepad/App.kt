@@ -42,6 +42,7 @@ fun CodePadApp(gateway: FileGateway) {
     var folderPath by remember { mutableStateOf<String?>(null) }
     var folderRefresh by remember { mutableIntStateOf(0) }
     var folderOpen by remember { mutableStateOf(false) }
+    var foldedView by remember { mutableStateOf(false) }
     var replaceOpen by remember { mutableStateOf(false) }
     var closeId by remember { mutableStateOf<Long?>(null) }
     var status by remember { mutableStateOf("Ready") }
@@ -161,6 +162,7 @@ fun CodePadApp(gateway: FileGateway) {
                 TextButton(onClick = { active.redo() }, enabled = active.canRedo) { Text("↷ Redo", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = !searchOpen }) { Text("⌕ Find", fontSize = 12.sp) }
                 TextButton(onClick = { searchOpen = true; replaceOpen = !replaceOpen }) { Text("Replace", fontSize = 12.sp) }
+                TextButton(onClick = { foldedView = !foldedView }) { Text(if (foldedView) "Edit" else "Fold", fontSize = 12.sp) }
                 TextButton(onClick = { goToOpen = true }) { Text("Go to", fontSize = 12.sp) }
                 TextButton(onClick = {
                     val snapshot = active.field.text
@@ -244,7 +246,19 @@ fun CodePadApp(gateway: FileGateway) {
                     if (active.field.text.isEmpty()) {
                         Text("Start typing your notes or code…", color = secondary.copy(alpha = 0.65f), fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
                     }
-                    BasicTextField(
+                    if (foldedView) {
+                        val blocks = remember(active.field.text) { detectFoldBlocks(active.field.text) }
+                        var folded by remember(active.id) { mutableStateOf(setOf<Int>()) }
+                        Column {
+                            Text("Code folding · preview only; tap Edit to modify text", color = secondary, fontSize = 11.sp)
+                            blocks.take(30).forEach { block ->
+                                TextButton(onClick = { folded = if (block.startLine in folded) folded - block.startLine else folded + block.startLine }) {
+                                    Text((if (block.startLine in folded) "▸" else "▾") + " Line " + (block.startLine + 1), fontSize = 12.sp)
+                                }
+                            }
+                            Text(foldedPreview(active.field.text, folded), color = ink, fontFamily = FontFamily.Monospace, fontSize = fontSize.sp)
+                        }
+                    } else BasicTextField(
                         value = active.field,
                         onValueChange = { active.edit(completeBracket(active.field, it, autoBrackets)) },
                         modifier = if (wordWrap) Modifier.fillMaxWidth() else Modifier.fillMaxWidth().defaultMinSize(minWidth = 280.dp),
